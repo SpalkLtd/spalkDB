@@ -3,87 +3,85 @@ package spalkDB
 
 import (
 	"bytes"
-	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"unicode"
 
 	"github.com/gocraft/dbr"
 )
 
-type InsertBuilder struct {
-	*dbr.InsertBuilder
-}
-
-func (b *InsertBuilder) Set(column string, value interface{}) *InsertBuilder {
-	dbrB := b.Pair(column, value)
-	return &InsertBuilder{dbrB}
-}
-
-type Builder interface {
-	Set(string, interface{}) Builder
-	Exec() (sql.Result, error)
-}
-
 // the first parameter must satisfy Builder, or be a dbr.InsertBuilder
 // The last parameter must be a struct
-func MapStruct(b interface{}, cols []string, value interface{}) (*Builder, error) {
-	switch v := b.(type) {
-	case Builder:
-		return mapStruct(v, cols, value)
+func MapStruct(b interface{}, cols []string, value interface{}) error {
+	switch b.(type) {
+	case *dbr.UpdateBuilder:
 	case *dbr.InsertBuilder:
-		return mapStruct(&InsertBuilder{v}, cols, value)
 	default:
-		return nil, errors.New("First parameter to MapStruct must be a Builder, dbr.UpdateBuilder, or dbr.InsertBuilder")
+		return errors.New("First parameter to MapStruct must be a Builder, dbr.UpdateBuilder, or dbr.InsertBuilder")
 	}
-}
 
-func mapStruct(b Builder, cols []string, value interface{}) (*Builder, error) {
-	rv := reflect.ValueOf(value)
-	if rv.Kind() != reflect.Struct {
-		return nil, errors.New("unsupported type passed in as value. value must be a struct.")
+	rt := reflect.TypeOf(value)
+	if rt.Kind() != reflect.Struct {
+		return errors.New("unsupported type passed in as value. value must be a struct.")
 	}
-	count := rv.NumField()
-	fields := make([]reflect.Value, count)
+	count := rt.NumField()
+	fields := make([]reflect.StructField, count)
 	for i := 0; i < count; i++ {
-		fields[i] = rv.FieldByIndex(i)
+		fields[i] = rt.FieldByIndex([]int{i})
 	}
 	if cols == nil {
 		//populate from value using reflection
 		cols = make([]string, 0)
 		for _, f := range fields {
-			if unicode.IsLower(f.Name[0]) && f.Tag.Get("db") != "-" && (f.Kind <= reflect.Complex128 || f.Kind == reflect.String) {
+			if unicode.IsLower(rune(f.Name[0])) && f.Tag.Get("db") != "-" && (f.Type.Kind() <= reflect.Complex128 || f.Type.Kind() == reflect.String) {
 				tag := f.Tag.Get("db")
 				if tag != "" {
 					cols = append(cols, tag)
 				}
-				cols = append(cols, camelCaseToSnakeCase(f.Name.String()))
+				cols = append(cols, camelCaseToSnakeCase(f.Name))
 			}
 		}
 	}
 
+	rf := reflect.ValueOf(value)
+
 colLoop:
-	for c := range cols {
+	for _, c := range cols {
 		matches := matchName(c)
-		f := rv.FieldByNameFunc(matches)
-		if f.IsValid() {
-			b.Set(c, f.Interface())
+		// data, ok := rf.FieldByIndex(f.Index)
+		data := rf.FieldByNameFunc(matches)
+		if data.IsValid() {
+			switch v := b.(type) {
+			case *dbr.UpdateBuilder:
+				v.Set(c, data.Interface())
+			case *dbr.InsertBuilder:
+				v.Pair(c, data.Interface())
+			}
+
 		} else {
-			for v := range feilds {
+			for _, f := range fields {
 				if f.Tag.Get("db") == c || matches(f.Name) {
-					b.Set(c, f.Interface())
+					data := rf.FieldByIndex(f.Index)
+					// b.Set(c, f.Interface())
+					switch v := b.(type) {
+					case *dbr.UpdateBuilder:
+						v.Set(c, data.Interface())
+					case *dbr.InsertBuilder:
+						v.Pair(c, data.Interface())
+					}
 					continue colLoop
 				}
 			}
-			return errors.New("no match found for column %s in struct", c)
+			return errors.New(fmt.Sprintf("no match found for column %s in struct", c))
 		}
 	}
 
-	return b, nil
+	return nil
 }
 
 func matchName(col string) func(string) bool {
-	return func(string name) bool {
+	return func(name string) bool {
 		return col == name || col == camelCaseToSnakeCase(name)
 	}
 }

@@ -19,7 +19,7 @@ func MapStruct(b interface{}, cols []string, value interface{}) func() (sql.Resu
 	case *dbr.UpdateBuilder:
 	case *dbr.InsertBuilder:
 	default:
-		panic(errors.New("First parameter to MapStruct must be a Builder, dbr.UpdateBuilder, or dbr.InsertBuilder"))
+		panic(errors.New("First parameter to MapStruct must be a Builder, dbr.UpdateBuilder, or dbr.InsertBuilder but got " + reflect.TypeOf(b).String()))
 	}
 
 	rt := reflect.TypeOf(value)
@@ -35,15 +35,17 @@ func MapStruct(b interface{}, cols []string, value interface{}) func() (sql.Resu
 		//populate from value using reflection
 		cols = make([]string, 0)
 		for _, f := range fields {
-			if unicode.IsLower(rune(f.Name[0])) && f.Tag.Get("db") != "-" && (f.Type.Kind() <= reflect.Complex128 || f.Type.Kind() == reflect.String) {
+			if f.Tag.Get("db") != "-" && (f.Type.Kind() <= reflect.Complex128 || f.Type.Kind() == reflect.String) && unicode.IsUpper(rune(f.Name[0])) {
 				tag := f.Tag.Get("db")
 				if tag != "" {
 					cols = append(cols, tag)
+				} else {
+					cols = append(cols, camelCaseToSnakeCase(f.Name))
 				}
-				cols = append(cols, camelCaseToSnakeCase(f.Name))
 			}
 		}
 	}
+	// log.Println(cols)
 
 	rf := reflect.ValueOf(value)
 
@@ -51,31 +53,36 @@ colLoop:
 	for _, c := range cols {
 		matches := matchName(c)
 		// data, ok := rf.FieldByIndex(f.Index)
-		data := rf.FieldByNameFunc(matches)
-		if data.IsValid() {
-			switch v := b.(type) {
-			case *dbr.UpdateBuilder:
-				v.Set(c, data.Interface())
-			case *dbr.InsertBuilder:
-				v.Pair(c, data.Interface())
-			}
-
-		} else {
-			for _, f := range fields {
-				if f.Tag.Get("db") == c || matches(f.Name) {
-					data := rf.FieldByIndex(f.Index)
-					// b.Set(c, f.Interface())
-					switch v := b.(type) {
-					case *dbr.UpdateBuilder:
-						v.Set(c, data.Interface())
-					case *dbr.InsertBuilder:
-						v.Pair(c, data.Interface())
-					}
-					continue colLoop
+		f, ok := rt.FieldByNameFunc(matches)
+		if ok && f.Tag.Get("db") == "" {
+			data := rf.FieldByNameFunc(matches)
+			if data.IsValid() {
+				switch v := b.(type) {
+				case *dbr.UpdateBuilder:
+					v.Set(c, data.Interface())
+				case *dbr.InsertBuilder:
+					v.Pair(c, data.Interface())
 				}
+				continue
 			}
-			panic(errors.New(fmt.Sprintf("no match found for column %s in struct", c)))
 		}
+
+		for _, f := range fields {
+			tag := f.Tag.Get("db")
+			if unicode.IsUpper(rune(f.Name[0])) && tag != "-" && (tag == c || (tag == "" && matches(f.Name))) {
+				data := rf.FieldByIndex(f.Index)
+				// b.Set(c, f.Interface())
+				switch v := b.(type) {
+				case *dbr.UpdateBuilder:
+					v.Set(c, data.Interface())
+				case *dbr.InsertBuilder:
+					v.Pair(c, data.Interface())
+				}
+				continue colLoop
+			}
+		}
+		panic(errors.New(fmt.Sprintf("no match found for column %s in struct %s", c, rt.String())))
+
 	}
 
 	switch v := b.(type) {
@@ -89,7 +96,7 @@ colLoop:
 
 func matchName(col string) func(string) bool {
 	return func(name string) bool {
-		return col == name || col == camelCaseToSnakeCase(name)
+		return unicode.IsUpper(rune(name[0])) && (col == name || col == camelCaseToSnakeCase(name))
 	}
 }
 

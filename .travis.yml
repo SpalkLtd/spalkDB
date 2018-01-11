@@ -1,0 +1,11 @@
+language: go
+go:
+- 1.8.x
+cache:
+  directories:
+  - "/home/travis/gopath/bin"
+install:
+- echo $(pwd)
+- cd $GOPATH/src/github.com/SpalkLtd/spalkDB && go get -v -t ./...
+script:
+- cd $GOPATH/src/github.com/SpalkLtd/spalkDB && go test -v ./...

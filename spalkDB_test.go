@@ -216,9 +216,9 @@ func getQueryString(b dbr.Builder) string {
 	query := buf.String()
 
 	query, err = dbr.InterpolateForDialect(query, buf.Value(), dialect.MySQL)
-	log.Println(query)
+	// log.Println(query)
 	if err != nil {
-		log.Println(err.Error())
+		// log.Println(err.Error())
 		return ""
 	}
 	return (query)

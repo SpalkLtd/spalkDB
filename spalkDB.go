@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"unicode"
 
 	"github.com/gocraft/dbr"
@@ -50,38 +51,28 @@ func MapStruct(b interface{}, cols []string, value interface{}) func() (sql.Resu
 	rf := reflect.ValueOf(value)
 
 colLoop:
-	for _, c := range cols {
-		matches := matchName(c)
+	for _, col := range cols {
+		matches := matchName(col)
 		// data, ok := rf.FieldByIndex(f.Index)
 		f, ok := rt.FieldByNameFunc(matches)
 		if ok && f.Tag.Get("db") == "" {
 			data := rf.FieldByNameFunc(matches)
 			if data.IsValid() {
-				switch v := b.(type) {
-				case *dbr.UpdateBuilder:
-					v.Set(c, data.Interface())
-				case *dbr.InsertBuilder:
-					v.Pair(c, data.Interface())
-				}
+				set(b, col, data)
 				continue
 			}
 		}
 
 		for _, f := range fields {
 			tag := f.Tag.Get("db")
-			if unicode.IsUpper(rune(f.Name[0])) && tag != "-" && (tag == c || (tag == "" && matches(f.Name))) {
+			if unicode.IsUpper(rune(f.Name[0])) && tag != "-" && (tag == col || (tag == "" && matches(f.Name))) {
 				data := rf.FieldByIndex(f.Index)
 				// b.Set(c, f.Interface())
-				switch v := b.(type) {
-				case *dbr.UpdateBuilder:
-					v.Set(c, data.Interface())
-				case *dbr.InsertBuilder:
-					v.Pair(c, data.Interface())
-				}
+				set(b, col, data)
 				continue colLoop
 			}
 		}
-		panic(errors.New(fmt.Sprintf("no match found for column %s in struct %s", c, rt.String())))
+		panic(errors.New(fmt.Sprintf("no match found for column %s in struct %s", col, rt.String())))
 
 	}
 
@@ -92,6 +83,19 @@ colLoop:
 		return v.Exec
 	}
 	return nil
+}
+
+func set(b interface{}, c string, data reflect.Value) {
+	switch v := b.(type) {
+	case *dbr.UpdateBuilder:
+		if strings.ToLower(c) == "id" {
+			v.Where("id=?", data.Interface())
+		} else {
+			v.Set(c, data.Interface())
+		}
+	case *dbr.InsertBuilder:
+		v.Pair(c, data.Interface())
+	}
 }
 
 func matchName(col string) func(string) bool {

@@ -85,53 +85,54 @@ func TestMapStruct(t *testing.T) {
 }
 
 var mapTestList = []mapTest{
-	mapTest{
+	mapTest{ // correct mapping of single value
 		struct{ Name string }{"name"},
 		nil,
 		"INSERT INTO `tableName` (`name`) VALUES ('name')",
 		map[string]interface{}{"name": "name"},
 		false,
 	},
-	mapTest{
+	mapTest{ // doesn't try to use unexported values
 		struct{ name string }{"name"},
 		nil,
 		"",
 		map[string]interface{}{},
 		false,
 	},
-	mapTest{
+	mapTest{ // Correctly handle multible values and different data types(should be handled by dbr)
 		struct {
-			ID   string
+			Foo  string
 			Name string
-		}{"id", "name"},
+			Bar  int
+		}{"Foo", "name", 7},
 		nil,
-		"INSERT INTO `tableName` (`id`,`name`) VALUES ('id','name')",
-		map[string]interface{}{"name": "name", "id": "id"},
+		"INSERT INTO `tableName` (`foo`,`name`,`bar`) VALUES ('Foo','name',7)",
+		map[string]interface{}{"name": "name", "foo": "Foo", "bar": 7},
 		false,
 	},
-	mapTest{
+	mapTest{ // combination of public and private attribs
 		struct {
-			ID      string
+			Foo     string
 			Name    string
 			missing string
 		}{"id", "name", "missing"},
 		nil,
-		"INSERT INTO `tableName` (`id`,`name`) VALUES ('id','name')",
-		map[string]interface{}{"name": "name", "id": "id"},
+		"INSERT INTO `tableName` (`foo`,`name`) VALUES ('id','name')",
+		map[string]interface{}{"name": "name", "foo": "id"},
 		false,
 	},
-	mapTest{
+	mapTest{ // tag same as field name, tag to omit, and omit private field despite tag to include
 		struct {
-			ID      string `db:"ID"`
+			Foo     string `db:"Foo"`
 			Name    string `db:"-"`
 			missing string `db:"missing"`
 		}{"id", "name", "missing"},
 		nil,
-		"INSERT INTO `tableName` (`ID`) VALUES ('id')",
-		map[string]interface{}{"ID": "id"},
+		"INSERT INTO `tableName` (`Foo`) VALUES ('id')",
+		map[string]interface{}{"Foo": "id"},
 		false,
 	},
-	mapTest{
+	mapTest{ // panic on non-existant columns
 		struct {
 			missing string `db:"missing"`
 		}{"missing"},
@@ -140,27 +141,27 @@ var mapTestList = []mapTest{
 		nil,
 		true,
 	},
-	mapTest{
+	mapTest{ // panic on not matching specified column because col is name not tag
 		struct {
-			ID string `db:"notAnId"`
+			Something string `db:"notAnId"`
 		}{"id"},
-		[]string{"name", "id"},
+		[]string{"something"},
 		"",
 		nil,
 		true,
 	},
-	mapTest{
+	mapTest{ // don't match col to field if omitted by tag
 		struct {
 			Name string `db:"-"`
 		}{"name"},
-		[]string{"name", "id"},
+		[]string{"name"},
 		"",
 		nil,
 		true,
 	},
-	mapTest{
+	mapTest{ // correctly handle tag being different to field
 		struct {
-			ID      string `db:"notAnId"`
+			Foo     string `db:"notAnId"`
 			Name    string `db:"-"`
 			missing string
 		}{"id", "name", "missing"},
@@ -169,29 +170,29 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"notAnId": "id"},
 		false,
 	},
-	mapTest{
+	mapTest{ // Match multiple fields in order in cols list
 		struct {
-			ID      string
+			Foo     string
 			Name    string
 			missing string `db:"missing"`
 		}{"id", "name", "missing"},
-		[]string{"id", "name"},
-		"INSERT INTO `tableName` (`id`,`name`) VALUES ('id','name')",
-		map[string]interface{}{"id": "id", "name": "name"},
+		[]string{"foo", "name"},
+		"INSERT INTO `tableName` (`foo`,`name`) VALUES ('id','name')",
+		map[string]interface{}{"foo": "id", "name": "name"},
 		false,
 	},
-	mapTest{
+	mapTest{ // reverse order from above to be sure
 		struct {
-			ID      string
+			Foo     string
 			Name    string
 			missing string `db:"missing"`
 		}{"id", "name", "missing"},
-		[]string{"name", "id"},
-		"INSERT INTO `tableName` (`name`,`id`) VALUES ('name','id')",
-		map[string]interface{}{"id": "id", "name": "name"},
+		[]string{"name", "foo"},
+		"INSERT INTO `tableName` (`name`,`foo`) VALUES ('name','id')",
+		map[string]interface{}{"foo": "id", "name": "name"},
 		false,
 	},
-	mapTest{
+	mapTest{ // omit id for update but not insert. Match col to renamed field
 		struct {
 			ID      string
 			Name    string `db:"blarg"`
@@ -199,7 +200,18 @@ var mapTestList = []mapTest{
 		}{"id", "name", "missing"},
 		[]string{"blarg", "id"},
 		"INSERT INTO `tableName` (`blarg`,`id`) VALUES ('name','id')",
-		map[string]interface{}{"id": "id", "blarg": "name"},
+		map[string]interface{}{"blarg": "name"},
+		false,
+	},
+
+	mapTest{ // correctly omit id
+		struct {
+			ID   string
+			Name string
+		}{"id", "name"},
+		nil,
+		"INSERT INTO `tableName` (`id`,`name`) VALUES ('id','name')",
+		map[string]interface{}{"name": "name"},
 		false,
 	},
 }

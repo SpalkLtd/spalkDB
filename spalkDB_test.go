@@ -17,16 +17,16 @@ type matchTest struct {
 }
 
 var matchList = []matchTest{
-	matchTest{"A", "A", true},
-	matchTest{"A", "b", false},
-	matchTest{"A", "a", true},
-	matchTest{"PascalCaseName", "pascal_case_name", true},
-	matchTest{"PascalCaseName", "pascal_caseName", false},
-	matchTest{"Pascal_caseName", "pascal_caseName", false},
-	matchTest{"PascalCaseName", "pascal_case_Name", false},
-	matchTest{"Pascal_case_Name", "Pascal_case_Name", true},
-	matchTest{"snake_case_name", "snake_case_name", false}, //unexported names not allowed
-	matchTest{"Snake_case_name", "snake_case_name", true},
+	{"A", "A", true},
+	{"A", "b", false},
+	{"A", "a", true},
+	{"PascalCaseName", "pascal_case_name", true},
+	{"PascalCaseName", "pascal_caseName", false},
+	{"Pascal_caseName", "pascal_caseName", false},
+	{"PascalCaseName", "pascal_case_Name", false},
+	{"Pascal_case_Name", "Pascal_case_Name", true},
+	{"snake_case_name", "snake_case_name", false}, //unexported names not allowed
+	{"Snake_case_name", "snake_case_name", true},
 }
 
 func TestMatchName(t *testing.T) {
@@ -85,21 +85,21 @@ func TestMapStruct(t *testing.T) {
 }
 
 var mapTestList = []mapTest{
-	mapTest{ // correct mapping of single value
+	{ // correct mapping of single value
 		struct{ Name string }{"name"},
 		nil,
 		"INSERT INTO `tableName` (`name`) VALUES ('name')",
 		map[string]interface{}{"name": "name"},
 		false,
 	},
-	mapTest{ // doesn't try to use unexported values
+	{ // doesn't try to use unexported values
 		struct{ name string }{"name"},
 		nil,
 		"",
 		map[string]interface{}{},
 		false,
 	},
-	mapTest{ // Correctly handle multible values and different data types(should be handled by dbr)
+	{ // Correctly handle multible values and different data types(should be handled by dbr)
 		struct {
 			Foo  string
 			Name string
@@ -110,7 +110,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"name": "name", "foo": "Foo", "bar": 7},
 		false,
 	},
-	mapTest{ // combination of public and private attribs
+	{ // combination of public and private attribs
 		struct {
 			Foo     string
 			Name    string
@@ -121,7 +121,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"name": "name", "foo": "id"},
 		false,
 	},
-	mapTest{ // tag same as field name, tag to omit, and omit private field despite tag to include
+	{ // tag same as field name, tag to omit, and omit private field despite tag to include
 		struct {
 			Foo     string `db:"Foo"`
 			Name    string `db:"-"`
@@ -132,7 +132,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"Foo": "id"},
 		false,
 	},
-	mapTest{ // panic on non-existant columns
+	{ // panic on non-existant columns
 		struct {
 			missing string `db:"missing"`
 		}{"missing"},
@@ -141,7 +141,7 @@ var mapTestList = []mapTest{
 		nil,
 		true,
 	},
-	mapTest{ // panic on not matching specified column because col is name not tag
+	{ // panic on not matching specified column because col is name not tag
 		struct {
 			Something string `db:"notAnId"`
 		}{"id"},
@@ -150,7 +150,7 @@ var mapTestList = []mapTest{
 		nil,
 		true,
 	},
-	mapTest{ // don't match col to field if omitted by tag
+	{ // don't match col to field if omitted by tag
 		struct {
 			Name string `db:"-"`
 		}{"name"},
@@ -159,7 +159,7 @@ var mapTestList = []mapTest{
 		nil,
 		true,
 	},
-	mapTest{ // correctly handle tag being different to field
+	{ // correctly handle tag being different to field
 		struct {
 			Foo     string `db:"notAnId"`
 			Name    string `db:"-"`
@@ -170,7 +170,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"notAnId": "id"},
 		false,
 	},
-	mapTest{ // Match multiple fields in order in cols list
+	{ // Match multiple fields in order in cols list
 		struct {
 			Foo     string
 			Name    string
@@ -181,7 +181,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"foo": "id", "name": "name"},
 		false,
 	},
-	mapTest{ // reverse order from above to be sure
+	{ // reverse order from above to be sure
 		struct {
 			Foo     string
 			Name    string
@@ -192,7 +192,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"foo": "id", "name": "name"},
 		false,
 	},
-	mapTest{ // omit id for update but not insert. Match col to renamed field
+	{ // omit id for update but not insert. Match col to renamed field
 		struct {
 			ID      string
 			Name    string `db:"blarg"`
@@ -204,7 +204,7 @@ var mapTestList = []mapTest{
 		false,
 	},
 
-	mapTest{ // correctly omit id
+	{ // correctly omit id
 		struct {
 			ID   string
 			Name string

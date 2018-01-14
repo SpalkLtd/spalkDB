@@ -25,7 +25,7 @@ func MapStruct(b interface{}, cols []string, value interface{}) func() (sql.Resu
 
 	rt := reflect.TypeOf(value)
 	if rt.Kind() != reflect.Struct {
-		panic(errors.New("unsupported type passed in as value. value must be a struct."))
+		panic(errors.New("unsupported type passed in as value. value must be a struct. Instead got: " + rt.String()))
 	}
 	count := rt.NumField()
 	fields := make([]reflect.StructField, count)

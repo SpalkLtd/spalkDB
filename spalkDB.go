@@ -16,6 +16,9 @@ import (
 // the first parameter must satisfy Builder, or be a dbr.InsertBuilder
 // The last parameter must be a struct
 func MapStruct(b interface{}, cols []string, value interface{}) func() (sql.Result, error) {
+	if reflect.TypeOf(value).Kind() == reflect.Ptr {
+		value = reflect.ValueOf(value).Elem().Interface()
+	}
 	switch b.(type) {
 	case *dbr.UpdateBuilder:
 	case *dbr.InsertBuilder:

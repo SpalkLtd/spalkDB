@@ -1,4 +1,4 @@
 #!/bin/bash
-gofmt -w -s *.go
+gofmt -w -s .
 go vet ./...
 go build

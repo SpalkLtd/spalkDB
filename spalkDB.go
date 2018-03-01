@@ -1,6 +1,7 @@
-//author: Dion Bramley Jan 2018
 // Package spalkDB provides a utility for easily inserting structs into a database
 package spalkDB
+
+//author: Dion Bramley Jan 2018
 
 import (
 	"bytes"

@@ -1,4 +1,5 @@
 //author: Dion Bramley Jan 2018
+// Package spalkDB provides a utility for easily inserting structs into a database
 package spalkDB
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/gocraft/dbr"
 )
 
+// MapStruct marshalls a struct into a database query, for use with gocraft/dbr
 // the first parameter must satisfy Builder, or be a dbr.InsertBuilder
 // The last parameter must be a struct
 func MapStruct(b interface{}, cols []string, value interface{}) func() (sql.Result, error) {
@@ -75,7 +77,7 @@ colLoop:
 				continue colLoop
 			}
 		}
-		panic(errors.New(fmt.Sprintf("no match found for column %s in struct %s", col, rt.String())))
+		panic(fmt.Errorf("no match found for column %s in struct %s", col, rt.String()))
 
 	}
 

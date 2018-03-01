@@ -132,7 +132,7 @@ var mapTestList = []mapTest{
 		map[string]interface{}{"Foo": "id"},
 		false,
 	},
-	{ // panic on non-existant columns
+	{ // panic on non-existent columns
 		struct {
 			missing string `db:"missing"`
 		}{"missing"},

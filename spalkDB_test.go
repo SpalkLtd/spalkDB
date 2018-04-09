@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/gocraft/dbr"
-	"github.com/gocraft/dbr/dialect"
+	"github.com/SpalkLtd/dbr"
+	"github.com/SpalkLtd/dbr/dialect"
 )
 
 type matchTest struct {

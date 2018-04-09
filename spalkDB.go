@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/gocraft/dbr"
+	"github.com/SpalkLtd/dbr"
 )
 
 // MapStruct marshalls a struct into a database query, for use with gocraft/dbr
